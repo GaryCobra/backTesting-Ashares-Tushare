@@ -24,6 +24,243 @@ from rag.report_store import (
 
 st.set_page_config(page_title="A股回测系统", layout="wide", page_icon="📊")
 
+# ── Fluent Design 2.0 CSS ──
+st.markdown("""<style>
+/* ════════════════════════════════════════
+   Fluent Design 2.0 — A股回测系统
+   ════════════════════════════════════════ */
+:root {
+  --fluent-bg: #FAF9F8;
+  --fluent-surface: #FFFFFF;
+  --fluent-primary: #0078D4;
+  --fluent-primary-hover: #106EBE;
+  --fluent-primary-active: #005A9E;
+  --fluent-text-dark: #201F1E;
+  --fluent-text: #484644;
+  --fluent-text-muted: #8A8886;
+  --fluent-border: #C7C6C6;
+  --fluent-border-light: #EDEBE9;
+  --fluent-success: #107C10;
+  --fluent-danger: #D13438;
+  --fluent-warning: #FF8C00;
+  --fluent-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --fluent-shadow-hover: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+  --fluent-radius: 4px;
+  --fluent-radius-card: 8px;
+}
+
+/* Reset Streamlit default chrome */
+#MainMenu, header, .stAppToolbar, .stDecoration, .stAppDeployButton {display: none !important;}
+.stApp {background: var(--fluent-bg);}
+.block-container {max-width: 1200px; padding: 0 24px !important;}
+
+/* Typography */
+html, body, [class*="css"] {
+  font-family: 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--fluent-text);
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Segoe UI Variable', 'Segoe UI', -apple-system, sans-serif;
+  color: var(--fluent-text-dark);
+  font-weight: 600;
+}
+
+/* Top brand bar */
+.brand-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; margin-bottom: 4px;
+}
+.brand-title {
+  font-size: 20px; font-weight: 600; color: var(--fluent-text-dark);
+  display: flex; align-items: center; gap: 8px;
+}
+.brand-status {
+  font-size: 12px; font-weight: 400;
+}
+
+/* Fluent Tabs */
+.fluent-tabs {
+  display: flex; gap: 0; background: var(--fluent-surface);
+  border-radius: var(--fluent-radius); padding: 2px;
+  box-shadow: var(--fluent-shadow); margin: 8px 0 20px 0;
+}
+.fluent-tab {
+  flex: 1; text-align: center; padding: 8px 16px;
+  border-radius: 3px; cursor: pointer; font-size: 14px;
+  font-weight: 500; color: var(--fluent-text); border: none;
+  background: transparent; transition: all 0.15s ease;
+}
+.fluent-tab:hover {background: #F3F2F1; color: var(--fluent-text-dark);}
+.fluent-tab.active {background: var(--fluent-primary); color: #FFFFFF; font-weight: 600;}
+.fluent-tab.active:hover {background: var(--fluent-primary-hover);}
+
+/* Section headers */
+.section-header {font-size: 22px; font-weight: 600; color: var(--fluent-text-dark); margin: 8px 0 4px 0;}
+.section-caption {font-size: 13px; color: var(--fluent-text-muted); margin-bottom: 16px;}
+
+/* Fluent Cards */
+.fluent-card {
+  background: var(--fluent-surface); border-radius: var(--fluent-radius-card);
+  box-shadow: var(--fluent-shadow); padding: 20px 24px;
+  border: 1px solid var(--fluent-border-light); margin-bottom: 16px;
+  transition: box-shadow 0.15s ease;
+}
+
+/* Inputs — Fluent style */
+.stTextInput>div>div>input, .stDateInput>div>div>input {
+  border-radius: var(--fluent-radius) !important;
+  border: 1px solid var(--fluent-border) !important;
+  padding: 6px 12px !important; font-size: 14px !important;
+  box-shadow: none !important; transition: border-color 0.15s;
+  background: var(--fluent-surface) !important;
+}
+.stTextInput>div>div>input:focus, .stDateInput>div>div>input:focus {
+  border-color: var(--fluent-primary) !important;
+  box-shadow: 0 0 0 1px var(--fluent-primary) !important;
+}
+
+.stTextArea>div>div>textarea {
+  border-radius: var(--fluent-radius) !important;
+  border: 1px solid var(--fluent-border) !important;
+  font-size: 14px !important; box-shadow: none !important;
+  transition: border-color 0.15s; background: var(--fluent-surface) !important;
+}
+.stTextArea>div>div>textarea:focus {
+  border-color: var(--fluent-primary) !important;
+  box-shadow: 0 0 0 1px var(--fluent-primary) !important;
+}
+
+.stSelectbox>div>div>div {
+  border-radius: var(--fluent-radius) !important;
+  border: 1px solid var(--fluent-border) !important;
+  min-height: 36px !important; font-size: 14px !important;
+  background: var(--fluent-surface) !important;
+}
+
+/* Buttons — Fluent style */
+.stButton>button {
+  border-radius: var(--fluent-radius) !important;
+  font-weight: 500 !important; font-size: 14px !important;
+  padding: 6px 20px !important; border: 1px solid transparent !important;
+  transition: all 0.15s ease !important;
+  font-family: inherit !important;
+}
+.stButton>button[kind="primary"] {
+  background: var(--fluent-primary) !important;
+  color: #FFFFFF !important; border: 1px solid var(--fluent-primary) !important;
+}
+.stButton>button[kind="primary"]:hover {
+  background: var(--fluent-primary-hover) !important;
+  border-color: var(--fluent-primary-hover) !important;
+}
+.stButton>button[kind="secondary"] {
+  background: transparent !important;
+  color: var(--fluent-text-dark) !important;
+  border: 1px solid var(--fluent-border) !important;
+}
+.stButton>button[kind="secondary"]:hover {
+  background: #F3F2F1 !important;
+}
+.stButton>button:active {transform: scale(0.98);}
+
+/* Metrics — Fluent Data Cards */
+div[data-testid="metric-container"] {
+  background: var(--fluent-surface); border-radius: var(--fluent-radius-card);
+  box-shadow: var(--fluent-shadow); padding: 16px 20px;
+  border: 1px solid var(--fluent-border-light);
+  text-align: center;
+}
+div[data-testid="metric-container"]>label {
+  font-size: 12px !important; color: var(--fluent-text-muted) !important;
+  font-weight: 400 !important; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+div[data-testid="metric-container"]>div {
+  font-size: 28px !important; font-weight: 600 !important;
+  color: var(--fluent-text-dark) !important;
+}
+
+/* Expanders — Fluent style */
+.streamlit-expanderHeader {
+  font-size: 14px !important; font-weight: 500 !important;
+  color: var(--fluent-text-dark) !important;
+  background: var(--fluent-surface) !important;
+  border-radius: var(--fluent-radius-card) !important;
+  border: 1px solid var(--fluent-border-light) !important;
+  padding: 12px 16px !important; margin-bottom: 4px;
+  box-shadow: var(--fluent-shadow); transition: box-shadow 0.15s;
+}
+.streamlit-expanderHeader:hover {
+  box-shadow: var(--fluent-shadow-hover);
+}
+.streamlit-expanderContent {
+  border: 1px solid var(--fluent-border-light);
+  border-top: none; border-radius: 0 0 var(--fluent-radius-card) var(--fluent-radius-card);
+  padding: 12px 16px !important; background: var(--fluent-surface);
+  margin-top: -4px;
+}
+
+/* DataFrame tables */
+.stDataFrame {
+  border-radius: var(--fluent-radius-card);
+  border: 1px solid var(--fluent-border-light);
+  overflow: hidden; font-size: 13px;
+}
+.stDataFrame table {width: 100%; border-collapse: collapse;}
+.stDataFrame th {
+  background: #FAF9F8 !important; font-weight: 600 !important;
+  color: var(--fluent-text-dark) !important; font-size: 12px !important;
+  text-transform: uppercase; letter-spacing: 0.3px;
+  padding: 8px 12px !important; border-bottom: 2px solid var(--fluent-border-light) !important;
+}
+.stDataFrame td {
+  padding: 6px 12px !important;
+  border-bottom: 1px solid var(--fluent-border-light) !important;
+}
+
+/* Progress bar */
+.stProgress>div>div>div>div {
+  background: var(--fluent-primary) !important;
+}
+.stProgress>div>div {
+  background: #E1DFDD !important;
+  border-radius: 2px !important; height: 4px !important;
+}
+
+/* Info/Success/Error/Warning boxes */
+.stAlert {
+  border-radius: var(--fluent-radius) !important;
+  border-left: 3px solid !important;
+  font-size: 13px !important; padding: 10px 16px !important;
+}
+
+/* Info messages */
+.stAlert[data-baseweb="notification"] {
+  border-left-color: var(--fluent-primary) !important;
+}
+
+/* Dividers */
+hr {border-color: var(--fluent-border-light) !important; margin: 20px 0 !important;}
+
+/* Checkbox / Radio */
+.stCheckbox>label, .stRadio>label {
+  font-size: 14px !important; color: var(--fluent-text) !important;
+}
+
+/* Tabs (if any) */
+.stTabs [data-baseweb="tab-list"] {gap: 0; border-bottom: 2px solid var(--fluent-border-light);}
+.stTabs [data-baseweb="tab"] {
+  padding: 8px 20px; font-size: 14px; font-weight: 500;
+  color: var(--fluent-text-muted);
+}
+.stTabs [aria-selected="true"] {
+  color: var(--fluent-primary) !important;
+}
+
+/* Expander for settings table */
+div[data-testid="stExpander"] {border: none !important;}
+</style>""", unsafe_allow_html=True)
+
 # ── 初始化 ──
 if "page" not in st.session_state:
     st.session_state.page = "strategy"
@@ -127,24 +364,32 @@ def parse_shares(description: str) -> int:
 # ════════════════════════════════════════════
 
 def main():
-    # 顶栏
-    cols = st.columns([1, 3, 1])
-    with cols[0]:
-        st.markdown("### 📊 回测系统")
-    with cols[1]:
-        btns = st.columns(3)
-        labels = ["📝 策略", "📈 结果", "⚙️ 设置"]
-        for i, (label, page) in enumerate(zip(labels, ["strategy", "report", "settings"])):
-            with btns[i]:
-                if st.button(label, use_container_width=True,
-                             type="primary" if st.session_state.page == page else "secondary"):
-                    st.session_state.page = page
-                    st.rerun()
-    with cols[2]:
-        status = _source_status_label()
-        color = _source_status_color()
-        st.markdown(f"<span style='color:{color};font-size:12px;'>{status}</span>",
-                    unsafe_allow_html=True)
+    # Fluent Design top bar
+    st.markdown(f"""
+    <div class="brand-bar">
+      <div class="brand-title">📊 回测系统</div>
+      <div class="brand-status" style="color:{_source_status_color()};">{_source_status_label()}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Fluent tabs navigation
+    pages = {"📝 策略": "strategy", "📈 结果": "report", "⚙️ 设置": "settings"}
+    tabs_html = '<div class="fluent-tabs">'
+    for label, page_id in pages.items():
+        active = "active" if st.session_state.page == page_id else ""
+        tabs_html += f'<button class="fluent-tab {active}" onclick="window.location.hash=\\"#page={page_id}\\"" data-page="{page_id}">{label}</button>'
+    tabs_html += '</div>'
+    st.markdown(tabs_html, unsafe_allow_html=True)
+
+    # Handle tab clicks via Streamlit buttons (hidden, triggered by session state)
+    cols = st.columns(3)
+    for i, (label, page) in enumerate(zip(pages.keys(), pages.values())):
+        with cols[i]:
+            clicked = st.button(label, key=f"nav_{page}", use_container_width=True,
+                                type="primary" if st.session_state.page == page else "secondary")
+            if clicked:
+                st.session_state.page = page
+                st.rerun()
 
     st.markdown("---")
 
@@ -160,8 +405,9 @@ def main():
 # 策略页面
 # ════════════════════════════════════════════
 def show_strategy_page():
-    st.markdown("## 策略回测")
-    st.markdown("用自然语言完整描述策略，AI 自动生成代码并扫描全市场")
+    st.markdown('<div class="fluent-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📝 策略回测</div>')
+    st.markdown('<div class="section-caption">用自然语言描述买卖条件，AI 自动匹配策略并扫描全市场</div>')
 
     buy_desc = st.text_area(
         "📈 买入条件",
@@ -186,6 +432,8 @@ def show_strategy_page():
     col_left, col_center, col_right = st.columns([2, 3, 2])
     with col_center:
         run_btn = st.button("🤖 生成策略并回测", type="primary", use_container_width=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # 显示 RAG 检索的相似策略参考
     if buy_desc and sell_desc:
@@ -286,7 +534,6 @@ def show_strategy_page():
 # 结果页面
 # ════════════════════════════════════════════
 def show_report_page():
-    # 报告选择
     report_ids = list(st.session_state.results.keys())
     if not report_ids:
         st.info("📭 还没有回测结果，先去「策略」页面运行一次吧")
@@ -296,6 +543,9 @@ def show_report_page():
     if current_id not in st.session_state.results and report_ids:
         current_id = report_ids[-1]
         st.session_state.current_report_id = current_id
+
+    st.markdown('<div class="section-header">📈 回测报告</div>')
+    st.markdown('<div class="section-caption">查看、保存、管理回测结果</div>')
 
     # 顶栏：报告名称/保存/历史/删除
     c1, c2, c3, c4 = st.columns([2, 1, 2, 1])
@@ -354,23 +604,20 @@ def show_report_page():
                 f"{report['start_date']} ~ {report['end_date']}</div>",
                 unsafe_allow_html=True)
 
-    st.markdown("---")
-
     # AI 优化建议
-    with st.container():
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.markdown("#### 🤖 AI 策略优化建议")
-        with col2:
-            if st.button("生成优化建议", use_container_width=True):
-                st.session_state.show_suggestion = True
+    st.markdown('<div class="fluent-card">', unsafe_allow_html=True)
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        st.markdown("##### 🤖 AI 策略优化建议")
+    with col2:
+        if st.button("生成优化建议", use_container_width=True):
+            st.session_state.show_suggestion = True
 
-        if st.session_state.get("show_suggestion"):
-            st.info(_generate_suggestion(r, report))
-        else:
-            st.caption("点击「生成优化建议」根据回测结果分析策略改进方向")
-
-    st.markdown("---")
+    if st.session_state.get("show_suggestion"):
+        st.info(_generate_suggestion(r, report))
+    else:
+        st.caption("点击「生成优化建议」根据回测结果分析策略改进方向")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # 标的列表
     summary = r["stock_summary"]
@@ -378,7 +625,7 @@ def show_report_page():
         st.warning("没有产生任何交易信号")
         return
 
-    st.markdown(f"### 📋 触发信号的标的 — 共 {len(summary)} 只")
+    st.markdown(f"<div class='section-header' style='font-size:18px;'>📋 触发信号的标的 — 共 {len(summary)} 只</div>", unsafe_allow_html=True)
 
     stocks_df = st.session_state.api.get_stock_basic()
     name_map = {}
