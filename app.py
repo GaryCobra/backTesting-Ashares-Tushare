@@ -78,33 +78,25 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 12px; font-weight: 400;
 }
 
-/* Fluent Tabs */
-.fluent-tabs {
-  display: flex; gap: 0; background: var(--fluent-surface);
-  border-radius: var(--fluent-radius); padding: 2px;
-  box-shadow: var(--fluent-shadow); margin: 8px 0 20px 0;
+/* Fluent Segmented Tab navigation */
+div[data-testid="column"]:nth-of-type(-n+3) > div > div > div > button {
+  border-radius: 0 !important; margin: 0 !important;
+  border-right-width: 0 !important;
+  box-shadow: var(--fluent-shadow);
 }
-.fluent-tab {
-  flex: 1; text-align: center; padding: 8px 16px;
-  border-radius: 3px; cursor: pointer; font-size: 14px;
-  font-weight: 500; color: var(--fluent-text); border: none;
-  background: transparent; transition: all 0.15s ease;
+div[data-testid="column"]:first-child > div > div > div > button {
+  border-radius: 4px 0 0 4px !important;
 }
-.fluent-tab:hover {background: #F3F2F1; color: var(--fluent-text-dark);}
-.fluent-tab.active {background: var(--fluent-primary); color: #FFFFFF; font-weight: 600;}
-.fluent-tab.active:hover {background: var(--fluent-primary-hover);}
+div[data-testid="column"]:nth-child(3) > div > div > div > button {
+  border-radius: 0 4px 4px 0 !important;
+  border-right-width: 1px !important;
+}
 
 /* Section headers */
 .section-header {font-size: 22px; font-weight: 600; color: var(--fluent-text-dark); margin: 8px 0 4px 0;}
 .section-caption {font-size: 13px; color: var(--fluent-text-muted); margin-bottom: 16px;}
 
-/* Fluent Cards */
-.fluent-card {
-  background: var(--fluent-surface); border-radius: var(--fluent-radius-card);
-  box-shadow: var(--fluent-shadow); padding: 20px 24px;
-  border: 1px solid var(--fluent-border-light); margin-bottom: 16px;
-  transition: box-shadow 0.15s ease;
-}
+/* Fluent Cards — handled by Streamlit component wrappers */
 
 /* Inputs — Fluent style */
 .stTextInput>div>div>input, .stDateInput>div>div>input {
@@ -364,7 +356,7 @@ def parse_shares(description: str) -> int:
 # ════════════════════════════════════════════
 
 def main():
-    # Fluent Design top bar
+    # Fluent top bar
     st.markdown(f"""
     <div class="brand-bar">
       <div class="brand-title">📊 回测系统</div>
@@ -372,26 +364,16 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Fluent tabs navigation
+    # Fluent tabs — Streamlit buttons styled as segmented tabs
     pages = {"📝 策略": "strategy", "📈 结果": "report", "⚙️ 设置": "settings"}
-    tabs_html = '<div class="fluent-tabs">'
-    for label, page_id in pages.items():
-        active = "active" if st.session_state.page == page_id else ""
-        tabs_html += f'<button class="fluent-tab {active}" onclick="window.location.hash=\\"#page={page_id}\\"" data-page="{page_id}">{label}</button>'
-    tabs_html += '</div>'
-    st.markdown(tabs_html, unsafe_allow_html=True)
-
-    # Handle tab clicks via Streamlit buttons (hidden, triggered by session state)
     cols = st.columns(3)
-    for i, (label, page) in enumerate(zip(pages.keys(), pages.values())):
+    for i, (label, page) in enumerate(pages.items()):
         with cols[i]:
             clicked = st.button(label, key=f"nav_{page}", use_container_width=True,
                                 type="primary" if st.session_state.page == page else "secondary")
             if clicked:
                 st.session_state.page = page
                 st.rerun()
-
-    st.markdown("---")
 
     if st.session_state.page == "strategy":
         show_strategy_page()
@@ -405,9 +387,8 @@ def main():
 # 策略页面
 # ════════════════════════════════════════════
 def show_strategy_page():
-    st.markdown('<div class="fluent-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">📝 策略回测</div>')
-    st.markdown('<div class="section-caption">用自然语言描述买卖条件，AI 自动匹配策略并扫描全市场</div>')
+    st.markdown("""<div class="section-header">📝 策略回测</div>
+<div class="section-caption">用自然语言描述买卖条件，AI 自动匹配策略并扫描全市场</div>""", unsafe_allow_html=True)
 
     buy_desc = st.text_area(
         "📈 买入条件",
@@ -432,8 +413,6 @@ def show_strategy_page():
     col_left, col_center, col_right = st.columns([2, 3, 2])
     with col_center:
         run_btn = st.button("🤖 生成策略并回测", type="primary", use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # 显示 RAG 检索的相似策略参考
     if buy_desc and sell_desc:
@@ -544,8 +523,8 @@ def show_report_page():
         current_id = report_ids[-1]
         st.session_state.current_report_id = current_id
 
-    st.markdown('<div class="section-header">📈 回测报告</div>')
-    st.markdown('<div class="section-caption">查看、保存、管理回测结果</div>')
+    st.markdown("""<div class="section-header">📈 回测报告</div>
+<div class="section-caption">查看、保存、管理回测结果</div>""", unsafe_allow_html=True)
 
     # 顶栏：报告名称/保存/历史/删除
     c1, c2, c3, c4 = st.columns([2, 1, 2, 1])
@@ -601,11 +580,10 @@ def show_report_page():
 
     st.markdown(f"<div style='font-size:11px;color:#787b86;margin:-10px 0 14px 0;'>"
                 f"总资金 ¥{report.get('capital', 100000):,.0f} · 每笔 {report.get('shares_per_trade', 100)} 股 · "
-                f"{report['start_date']} ~ {report['end_date']}</div>",
+                f"{report.get('start_date', '—')} ~ {report.get('end_date', '—')}</div>",
                 unsafe_allow_html=True)
 
     # AI 优化建议
-    st.markdown('<div class="fluent-card">', unsafe_allow_html=True)
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown("##### 🤖 AI 策略优化建议")
@@ -617,7 +595,6 @@ def show_report_page():
         st.info(_generate_suggestion(r, report))
     else:
         st.caption("点击「生成优化建议」根据回测结果分析策略改进方向")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # 标的列表
     summary = r["stock_summary"]
