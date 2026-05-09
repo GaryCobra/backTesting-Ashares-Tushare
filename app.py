@@ -308,16 +308,28 @@ def _source_status_color() -> str:
 
 def resolve_stock_codes(api, description: str) -> list:
     """从自然语言描述中解析标的范围
-    简单策略：用关键词匹配预定义范围，未来可升级为 AI 解析
+    多源兜底 + 关键词匹配
     """
+    # Try active source first, fallback to others
     stocks = api.get_stock_basic()
     if stocks.empty:
+        for src_name in ["baostock", "akshare", "ashare"]:
+            try:
+                from core.data_source import create_source
+                alt = create_source(src_name)
+                stocks = alt.get_stock_basic()
+                if not stocks.empty:
+                    break
+            except Exception:
+                continue
+
+    if stocks.empty:
         return []
+
     desc_lower = description.lower().replace(" ", "")
 
     # 关键词匹配
     if any(k in desc_lower for k in ["中证500", "zz500", "zhongzheng500"]):
-        # 取前 500 只
         return stocks["ts_code"].head(500).tolist()
     elif any(k in desc_lower for k in ["沪深300", "hs300", "hushen300"]):
         return stocks["ts_code"].head(300).tolist()
@@ -325,6 +337,11 @@ def resolve_stock_codes(api, description: str) -> list:
         return stocks["ts_code"].head(1000).tolist()
     elif any(k in desc_lower for k in ["全a股", "全A", "所有股票", "全市场"]):
         return stocks["ts_code"].tolist()
+    # 创业板/科创板
+    elif any(k in desc_lower for k in ["创业板", "cyb"]):
+        return stocks[stocks["ts_code"].str.endswith(".SZ")].head(500).tolist()
+    elif any(k in desc_lower for k in ["科创板", "kcb"]):
+        return stocks[stocks["ts_code"].str.startswith("688")].head(500).tolist()
     else:
         # 默认中证500
         return stocks["ts_code"].head(500).tolist()

@@ -28,18 +28,18 @@ class AkshareSource(DataSource):
             return cached
         try:
             import akshare as ak
-            df = ak.stock_zh_a_spot_em()
+            df = ak.stock_info_a_code_name()
             if df.empty:
                 return pd.DataFrame()
 
             renamed = pd.DataFrame()
-            renamed["ts_code"] = df["代码"].apply(self._symbol_to_tscode)
-            renamed["symbol"] = df["代码"]
-            renamed["name"] = df["名称"]
+            renamed["ts_code"] = df["code"].apply(self._symbol_to_tscode)
+            renamed["symbol"] = df["code"].astype(str).str.strip()
+            renamed["name"] = df["name"].astype(str).str.strip()
             renamed["area"] = ""
-            renamed["industry"] = df.get("行业", "")
-            renamed["market"] = df["代码"].apply(
-                lambda x: "SZ" if str(x).startswith(("3", "0")) else "SH"
+            renamed["industry"] = ""
+            renamed["market"] = df["code"].astype(str).apply(
+                lambda x: "SZ" if x.strip().startswith(("0", "3")) else "SH"
             )
             renamed["list_date"] = ""
             renamed["is_hs"] = ""
