@@ -3,7 +3,7 @@ import pandas as pd
 import time
 from core.data_source import DataSource
 from core.cache import (
-    init_db, get_cached_daily, save_daily,
+    init_db, get_cached_daily, save_daily, has_cached_range,
     get_cached_stocks, save_stock_basic,
     get_cache_stats,
 )
@@ -72,13 +72,8 @@ class TushareSource(DataSource):
             return pd.DataFrame()
 
     def get_daily(self, code: str, start_date: str, end_date: str) -> pd.DataFrame:
-        cached = get_cached_daily(code, start_date, end_date)
-        if not cached.empty:
-            cached_dates = set(cached["trade_date"].dt.strftime("%Y%m%d"))
-            cached_start = cached["trade_date"].min().strftime("%Y%m%d")
-            cached_end = cached["trade_date"].max().strftime("%Y%m%d")
-            if cached_start <= start_date and cached_end >= end_date:
-                return cached.sort_values("trade_date")
+        if has_cached_range(code, start_date, end_date):
+            return get_cached_daily(code, start_date, end_date).sort_values("trade_date")
 
         self._rate_limit()
         try:

@@ -78,8 +78,11 @@ class SignalEngine:
             buy_date = None
 
             for i in range(len(df)):
+                close_val = df.iloc[i]["close"]
+                if close_val is None or (isinstance(close_val, float) and pd.isna(close_val)):
+                    continue
                 date = df.index[i].strftime("%Y-%m-%d") if hasattr(df.index[i], "strftime") else str(df.index[i])
-                price = float(df.iloc[i]["close"])
+                price = float(close_val)
 
                 try:
                     buy_signal = strat.buy_condition(i)

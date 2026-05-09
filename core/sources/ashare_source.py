@@ -6,7 +6,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from core.data_source import DataSource
-from core.cache import get_cached_daily, save_daily, get_cached_stocks, save_stock_basic
+from core.cache import get_cached_daily, save_daily, has_cached_range, get_cached_stocks, save_stock_basic
 
 # 将 Ashare 目录加入 path 以便 import
 _src_dir = Path(__file__).parent
@@ -70,12 +70,8 @@ class AshareSource(DataSource):
             return pd.DataFrame()
 
     def get_daily(self, code: str, start_date: str, end_date: str) -> pd.DataFrame:
-        cached = get_cached_daily(code, start_date, end_date)
-        if not cached.empty:
-            cached_start = cached["trade_date"].min().strftime("%Y%m%d")
-            cached_end = cached["trade_date"].max().strftime("%Y%m%d")
-            if cached_start <= start_date and cached_end >= end_date:
-                return cached.sort_values("trade_date")
+        if has_cached_range(code, start_date, end_date):
+            return get_cached_daily(code, start_date, end_date).sort_values("trade_date")
 
         ashare_code = self._tscode_to_ashare(code)
         try:
@@ -94,15 +90,16 @@ class AshareSource(DataSource):
             if df is None or df.empty:
                 return pd.DataFrame()
 
-            renamed = pd.DataFrame()
-            renamed["trade_date"] = df.index.strftime("%Y%m%d")
-            renamed["open"] = df["open"].astype(float)
-            renamed["high"] = df["high"].astype(float)
-            renamed["low"] = df["low"].astype(float)
-            renamed["close"] = df["close"].astype(float)
-            renamed["volume"] = df["volume"].astype(float)
-            renamed["amount"] = 0.0  # Ashare 不提供成交额
-            renamed["ts_code"] = code
+            renamed = pd.DataFrame({
+                "trade_date": df.index.strftime("%Y%m%d"),
+                "open": df["open"].values.astype(float),
+                "high": df["high"].values.astype(float),
+                "low": df["low"].values.astype(float),
+                "close": df["close"].values.astype(float),
+                "volume": df["volume"].values.astype(float),
+                "amount": 0.0,
+                "ts_code": code,
+            })
 
             save_daily(code, renamed)
             return get_cached_daily(code, start_date, end_date).sort_values("trade_date")

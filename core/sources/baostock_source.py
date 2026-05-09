@@ -2,7 +2,7 @@
 import re
 import pandas as pd
 from core.data_source import DataSource
-from core.cache import get_cached_daily, save_daily, get_cached_stocks, save_stock_basic
+from core.cache import get_cached_daily, save_daily, has_cached_range, get_cached_stocks, save_stock_basic
 
 
 class BaostockSource(DataSource):
@@ -76,22 +76,21 @@ class BaostockSource(DataSource):
             return pd.DataFrame()
 
     def get_daily(self, code: str, start_date: str, end_date: str) -> pd.DataFrame:
-        cached = get_cached_daily(code, start_date, end_date)
-        if not cached.empty:
-            cached_start = cached["trade_date"].min().strftime("%Y%m%d")
-            cached_end = cached["trade_date"].max().strftime("%Y%m%d")
-            if cached_start <= start_date and cached_end >= end_date:
-                return cached.sort_values("trade_date")
+        if has_cached_range(code, start_date, end_date):
+            return get_cached_daily(code, start_date, end_date).sort_values("trade_date")
 
         bs_code = self._tscode_to_baostock(code)
         try:
             self._login()
             import baostock as bs
+            # Baostock requires YYYY-MM-DD format
+            bs_start = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
+            bs_end = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
             rs = bs.query_history_k_data_plus(
                 bs_code,
                 fields="date,open,high,low,close,volume,amount",
-                start_date=start_date,
-                end_date=end_date,
+                start_date=bs_start,
+                end_date=bs_end,
                 frequency="d",
                 adjustflag="2",
             )

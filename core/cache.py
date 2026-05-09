@@ -79,23 +79,36 @@ def get_cached_daily(ts_code: str, start_date: str, end_date: str) -> pd.DataFra
     return df
 
 
+def has_cached_range(ts_code: str, start_date: str, end_date: str) -> bool:
+    """Check cache_meta for full coverage of date range"""
+    conn = _get_conn()
+    row = conn.execute(
+        "SELECT start_date, end_date FROM cache_meta WHERE api_name='daily' AND ts_code=?",
+        (ts_code,)
+    ).fetchone()
+    conn.close()
+    if row:
+        return row[0] <= start_date and row[1] >= end_date
+    return False
+
+
 def save_daily(ts_code: str, df: pd.DataFrame):
-    """批量写入日线缓存（增量）"""
+    """Overwrite cache — delete then insert to avoid UNIQUE conflicts"""
     if df.empty:
         return
     conn = _get_conn()
     df = df.copy()
-    if "trade_date" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["trade_date"]):
-        df["trade_date"] = pd.to_datetime(df["trade_date"])
     if "trade_date" in df.columns:
-        df["trade_date"] = df["trade_date"].dt.strftime("%Y%m%d")
-    # 只写入需要的列
+        if pd.api.types.is_datetime64_any_dtype(df["trade_date"]):
+            df["trade_date"] = df["trade_date"].dt.strftime("%Y%m%d")
+        else:
+            df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.strftime("%Y%m%d")
     cols = [c for c in ["ts_code", "trade_date", "open", "high", "low", "close", "pre_close", "volume", "amount"] if c in df.columns]
     if not cols:
         conn.close()
         return
+    conn.execute("DELETE FROM cache_daily WHERE ts_code=?", (ts_code,))
     df[cols].to_sql("cache_daily", conn, if_exists="append", index=False, method="multi")
-    # 更新元数据
     start = df["trade_date"].min()
     end = df["trade_date"].max()
     conn.execute(
