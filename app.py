@@ -52,6 +52,31 @@ if "db_reports_loaded" not in st.session_state:
 # 工具函数
 # ════════════════════════════════════════════
 
+def _current_source_type() -> str:
+    """返回当前数据源类型名"""
+    cfg = load_config()
+    return cfg.get("data_source", "tushare")
+
+
+def _source_needs_token() -> bool:
+    """当前数据源是否需要 Token"""
+    return _current_source_type() == "tushare"
+
+
+def _source_status_label() -> str:
+    """顶部栏状态文字"""
+    source_type = _current_source_type()
+    if source_type == "tushare":
+        return "● 已连接" if get_token() else "○ Token 未配置"
+    return f"● {source_type}"
+
+
+def _source_status_color() -> str:
+    source_type = _current_source_type()
+    if source_type == "tushare":
+        return "#26a69a" if get_token() else "#787b86"
+    return "#26a69a"
+
 def resolve_stock_codes(api, description: str) -> list:
     """从自然语言描述中解析标的范围
     简单策略：用关键词匹配预定义范围，未来可升级为 AI 解析
@@ -116,8 +141,8 @@ def main():
                     st.session_state.page = page
                     st.rerun()
     with cols[2]:
-        status = "● 已连接" if get_token() else "○ 未配置"
-        color = "#26a69a" if get_token() else "#787b86"
+        status = _source_status_label()
+        color = _source_status_color()
         st.markdown(f"<span style='color:{color};font-size:12px;'>{status}</span>",
                     unsafe_allow_html=True)
 
@@ -172,8 +197,8 @@ def show_strategy_page():
                     st.code(s['code'][:200], language="python")
 
     if run_btn:
-        if not get_token():
-            st.error("请先在设置页面配置 Tushare Token")
+        if _source_needs_token() and not get_token():
+            st.error("Tushare 需要 Token，请在设置页配置或切换到免费数据源（AkShare/Baostock/Ashare）")
             return
 
         with st.spinner("正在拉取数据并运行回测..."):
