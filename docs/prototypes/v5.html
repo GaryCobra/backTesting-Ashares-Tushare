@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股回测系统 - 原型 v5</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #131722; --bg2: #1e222d; --bg3: #262b38;
+    --border: #2a2e39; --border2: #363a45;
+    --text: #d1d4dc; --text2: #787b86; --text3: #5d6170;
+    --accent: #2962FF; --accent2: #5c8aff;
+    --profit: #ef5350; --loss: #26a69a;
+    --font: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+  html { font-size: 14px; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  .tb { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 20px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .logo { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .logo span { color: var(--text3); font-weight: 400; font-size: 11px; }
+  .nav { display: flex; height: 100%; }
+  .nv { display: flex; align-items: center; padding: 0 18px; font-size: 13px; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; }
+  .nv:hover { color: var(--text); }
+  .nv.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .tr { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text3); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .dot.g { background: var(--loss); }
+
+  .page { display: none; }
+  .page.on { display: block; }
+  .ct { max-width: 860px; margin: 0 auto; padding: 20px; }
+
+  .pgt { margin-bottom: 16px; }
+  .pgt h1 { font-size: 18px; font-weight: 600; }
+  .pgt p { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+  .cd { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 14px; }
+
+  /* ── 策略描述 ── */
+  .desc-label { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .desc-label .icon { font-size: 16px; }
+  .desc-label .hint { font-size: 11px; color: var(--text3); font-weight: 400; }
+
+  textarea.desc { width: 100%; height: 72px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 13px; padding: 10px 12px; resize: vertical; outline: none; font-family: var(--font); }
+  textarea.desc:focus { border-color: var(--accent); }
+  textarea.desc::placeholder { color: var(--text3); }
+
+  .desc-gap { height: 6px; }
+
+  /* ── 参数条 ── */
+  .param-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  .param-item { display: flex; align-items: center; gap: 6px; }
+  .param-item label { font-size: 11px; color: var(--text2); white-space: nowrap; }
+  .param-item input, .param-item select { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 5px 8px; font-size: 12px; outline: none; }
+  .param-item input:focus { border-color: var(--accent); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 22px; border-radius: 5px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+  .btn-p { background: var(--accent); color: #fff; }
+  .btn-p:hover { opacity: 0.9; }
+  .btn-lg { padding: 10px 28px; font-size: 14px; }
+
+  .action-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+
+  /* ── 报告区 ── */
+  .summary-bar { background: linear-gradient(135deg, #1e222d, #232833); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 14px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .sum-item { text-align: center; }
+  .sum-item .l { font-size: 10px; color: var(--text3); }
+  .sum-item .v { font-size: 18px; font-weight: 700; margin: 1px 0; }
+  .sum-item .v.g { color: var(--profit); }
+  .sum-item .v.r { color: var(--loss); }
+  .sum-item .s { font-size: 10px; color: var(--text3); }
+
+  /* ── 标的列表（可展开） ── */
+  .stock-item { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+  .stock-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; background: var(--bg); transition: background 0.1s; }
+  .stock-header:hover { background: var(--bg3); }
+  .stock-header .arrow { font-size: 10px; color: var(--text3); transition: transform 0.15s; }
+  .stock-header .arrow.open { transform: rotate(90deg); }
+  .stock-header .code { font-weight: 500; font-size: 13px; min-width: 100px; }
+  .stock-header .name { font-size: 11px; color: var(--text3); min-width: 80px; }
+  .stock-header .stat { font-size: 12px; color: var(--text2); margin-left: auto; display: flex; gap: 16px; }
+  .stock-header .stat .g { color: var(--profit); }
+  .stock-header .stat .r { color: var(--loss); }
+
+  .stock-detail { display: none; border-top: 1px solid var(--border); background: rgba(19,23,34,0.5); }
+  .stock-detail.open { display: block; }
+
+  .trade-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .trade-table th { text-align: left; padding: 8px 14px; color: var(--text3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.2px; border-bottom: 1px solid var(--border); font-weight: 500; }
+  .trade-table td { padding: 7px 14px; border-bottom: 1px solid rgba(42,46,57,0.2); }
+  .trade-table .up { color: var(--profit); }
+  .trade-table .dn { color: var(--loss); }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); }
+  .empty-state .icon { font-size: 32px; margin-bottom: 8px; opacity: 0.3; }
+  .empty-state h3 { font-size: 14px; color: var(--text2); font-weight: 500; }
+
+  @media (max-width: 700px) {
+    .summary-bar { gap: 10px; }
+    .sum-item .v { font-size: 15px; }
+    .stock-header { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tb">
+  <div class="logo">📊 回测系统 <span>v5</span></div>
+  <div class="nav">
+    <div class="nv on" onclick="sw('strategy')">策略</div>
+    <div class="nv" onclick="sw('report')">回测结果</div>
+    <div class="nv" onclick="sw('settings')">设置</div>
+  </div>
+  <div class="tr"><span class="dot g"></span>就绪</div>
+</div>
+
+<!-- ========== STRATEGY PAGE ========== -->
+<div class="page on" id="p-strategy">
+  <div class="ct">
+    <div class="pgt"><h1>策略回测</h1><p>用自然语言完整描述策略，AI 自动生成代码并扫描全市场</p></div>
+
+    <div class="cd">
+      <div class="desc-label"><span class="icon">📈</span> 买入条件 <span class="hint">描述买什么标的、何时买、每次买多少、总资金多少</span></div>
+      <textarea class="desc" id="buyDesc" placeholder="例如：中证500日线级别，总资金10万，5日均线上穿20日均线时买入100股，上涨超5%加仓100股">中证500日线级别，总资金10万元，5日均线上穿20日均线时买入100股</textarea>
+
+      <div class="desc-gap"></div>
+
+      <div class="desc-label"><span class="icon">📉</span> 卖出条件 <span class="hint">描述何时卖出、卖多少</span></div>
+      <textarea class="desc" id="sellDesc" placeholder="例如：5日均线下穿20日均线时卖出全部持仓，或亏损超5%止损">5日均线下穿20日均线时卖出全部持仓，或亏损超5%强制止损</textarea>
+
+      <div class="param-bar">
+        <div class="param-item"><label>起始</label><input type="text" value="2024-01-01" style="width:100px;"></div>
+        <div class="param-item"><label>结束</label><input type="text" value="2024-12-31" style="width:100px;"></div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-p btn-lg" onclick="sw('report')">🤖 生成策略并回测</button>
+        <span style="font-size:11px; color:var(--text3);">AI 根据文字描述生成策略代码 → 逐只扫描信号</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== REPORT PAGE ========== -->
+<div class="page" id="p-report">
+  <div class="ct">
+    <!-- Report header + save -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div class="pgt" style="margin-bottom:0;"><h1>回测结果</h1></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <input type="text" value="双均线金叉+成交量过滤" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 8px;font-size:12px;width:220px;outline:none;">
+          <button class="btn btn-p" style="padding:5px 14px;font-size:11px;">💾 保存报告</button>
+          <select style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 8px;font-size:11px;outline:none;">
+            <option>📂 历史报告</option>
+            <option>双均线金叉+成交量 (2024-01-01~2024-12-31)</option>
+            <option>MACD金叉策略 (2024-06-01~2024-12-31)</option>
+            <option>布林带反弹 (2024全年)</option>
+          </select>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--text3);">2024-01-01 ~ 2024-12-31</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">中证500 日线 · 总资金10万 · 每笔100股</div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-bar">
+      <div class="sum-item"><div class="l">扫描标的</div><div class="v" style="color:var(--text);">500</div><div class="s">502只成分股</div></div>
+      <div class="sum-item"><div class="l">触发买入</div><div class="v">1,284</div><div class="s">次信号</div></div>
+      <div class="sum-item"><div class="l">触发卖出</div><div class="v">1,126</div><div class="s">次信号</div></div>
+      <div class="sum-item"><div class="l">完成交易</div><div class="v">986</div><div class="s">笔（买卖配对）</div></div>
+      <div class="sum-item"><div class="l">总盈亏</div><div class="v g">+¥8,240</div><div class="s">每笔100股估算</div></div>
+      <div class="sum-item"><div class="l">胜率</div><div class="v" style="color:var(--text);">52.3%</div><div class="s">盈利 516 / 亏损 470</div></div>
+    </div>
+
+    <!-- AI Suggestion -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:500;">🤖 AI 策略优化建议</span>
+        <button class="btn btn-p" style="padding:5px 14px;font-size:11px;">生成优化建议</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.6;">
+        根据当前回测结果（胜率 52.3%，总收益 ¥8,240），AI 建议：尝试加入成交量过滤（成交量 > 5日均量 × 1.5），可降低买入信号 30%，预计提升胜率至 58%。止损设为 -5% 可减少最大回撤。
+      </div>
+    </div>
+
+    <!-- Signal stocks list -->
+    <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;font-weight:500;">📋 触发信号的标的 <span style="color:var(--text3);font-weight:400;">共 312 只 · 点击展开交易明细</span></span>
+      <span style="font-size:11px;color:var(--text3);">按信号次数排序</span>
+    </div>
+
+    <!-- Stock item 1 -->
+    <div class="stock-item">
+      <div class="stock-header" onclick="toggleDetail(this)">
+        <span class="arrow">▶</span>
+        <span class="code">300750.SZ</span>
+        <span class="name">宁德时代</span>
+        <span class="stat">买卖 <span class="g">8</span> 次 · 收益 <span class="g">+18.5%</span> · 盈利 <span class="g">+¥3,200</span></span>
+      </div>
+      <div class="stock-detail">
+        <table class="trade-table">
+          <tr><th>#</th><th>方向</th><th>日期</th><th>价格</th><th>数量</th><th>盈亏</th><th>金额</th><th>持仓</th></tr>
+          <tr><td>1</td><td class="up">▲ 买入</td><td>2024-01-15</td><td>158.50</td><td>100股</td><td></td><td></td><td></td></tr>
+          <tr><td>2</td><td class="dn">▼ 卖出</td><td>2024-02-20</td><td>172.00</td><td>100股</td><td class="up">+8.5%</td><td class="up">+1,350</td><td>36天</td></tr>
+          <tr><td>3</td><td class="up">▲ 买入</td><td>2024-03-10</td><td>165.00</td><td>100股</td><td></td><td></td><td></td></tr>
+          <tr><td>4</td><td class="dn">▼ 卖出</td><td>2024-04-18</td><td>178.50</td><td>100股</td><td class="up">+8.2%</td><td class="up">+1,350</td><td>39天</td></tr>
+          <tr><td>5</td><td class="up">▲ 买入</td><td>2024-05-05</td><td>170.00</td><td>100股</td><td></td><td></td><td></td></tr>
+          <tr><td>6</td><td class="dn">▼ 卖出</td><td>2024-06-15</td><td>162.00</td><td>100股</td><td class="dn">-4.7%</td><td class="dn">-800</td><td>41天</td></tr>
+          <tr><td>7</td><td class="up">▲ 买入</td><td>2024-07-20</td><td>155.00</td><td>100股</td><td></td><td></td><td></td></tr>
+          <tr><td>8</td><td class="dn">▼ 卖出</td><td>2024-09-01</td><td>168.00</td><td>100股</td><td class="up">+8.4%</td><td class="up">+1,300</td><td>43天</td></tr>
+          <tr style="background:rgba(41,98,255,0.04);"><td colspan="2"></td><td></td><td></td><td><strong>汇总</strong></td><td class="up"><strong>+18.5%</strong></td><td class="up"><strong>+3,200</strong></td><td></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stock item 2 -->
+    <div class="stock-item">
+      <div class="stock-header" onclick="toggleDetail(this)">
+        <span class="arrow">▶</span>
+        <span class="code">600519.SH</span>
+        <span class="name">贵州茅台</span>
+        <span class="stat">买卖 <span class="g">6</span> 次 · 收益 <span class="g">+12.3%</span> · 盈利 <span class="g">+¥2,800</span></span>
+      </div>
+      <div class="stock-detail">
+        <table class="trade-table">
+          <tr><th>#</th><th>方向</th><th>日期</th><th>价格</th><th>数量</th><th>盈亏</th><th>金额</th><th>持仓</th></tr>
+          <tr><td>1</td><td class="up">▲ 买入</td><td>2024-01-20</td><td>1,585</td><td>100股</td><td></td><td></td><td></td></tr>
+          <tr><td>2</td><td class="dn">▼ 卖出</td><td>2024-03-10</td><td>1,720</td><td>100股</td><td class="up">+8.5%</td><td class="up">+13,500</td><td>50天</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stock item 3 -->
+    <div class="stock-item">
+      <div class="stock-header" onclick="toggleDetail(this)">
+        <span class="arrow">▶</span>
+        <span class="code">000001.SZ</span>
+        <span class="name">平安银行</span>
+        <span class="stat">买卖 <span class="g">5</span> 次 · 收益 <span class="r">-2.1%</span> · 盈利 <span class="r">-¥320</span></span>
+      </div>
+      <div class="stock-detail">
+        <table class="trade-table">
+          <tr><th>#</th><th>方向</th><th>日期</th><th>价格</th><th>数量</th><th>盈亏</th><th>金额</th><th>持仓</th></tr>
+          <tr><td>1</td><td class="up">▲ 买入</td><td>2024-01-15</td><td>8.50</td><td>1,000股</td><td></td><td></td><td></td></tr>
+          <tr><td>2</td><td class="dn">▼ 卖出</td><td>2024-02-20</td><td>9.80</td><td>1,000股</td><td class="up">+15.3%</td><td class="up">+1,300</td><td>36天</td></tr>
+          <tr><td>3</td><td class="up">▲ 买入</td><td>2024-02-25</td><td>9.20</td><td>1,000股</td><td></td><td></td><td></td></tr>
+          <tr><td>4</td><td class="dn">▼ 卖出</td><td>2024-04-01</td><td>8.50</td><td>1,000股</td><td class="dn">-7.6%</td><td class="dn">-700</td><td>35天</td></tr>
+          <tr><td>5</td><td class="up">▲ 买入</td><td>2024-04-15</td><td>8.80</td><td>1,000股</td><td></td><td></td><td></td></tr>
+          <tr><td>6</td><td class="dn">▼ 卖出</td><td>2024-06-10</td><td>10.20</td><td>1,000股</td><td class="up">+15.9%</td><td class="up">+1,400</td><td>56天</td></tr>
+          <tr style="background:rgba(41,98,255,0.04);"><td colspan="2"></td><td></td><td></td><td><strong>汇总</strong></td><td class="dn"><strong>-2.1%</strong></td><td class="dn"><strong>-320</strong></td><td></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SETTINGS PAGE ========== -->
+<div class="page" id="p-settings">
+  <div class="ct" style="max-width:600px;">
+    <div class="pgt"><h1>设置</h1></div>
+    <div class="cd">
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:500;margin-bottom:6px;">🔑 Tushare 连接</div>
+        <div style="display:flex;gap:6px;flex-direction:column;">
+          <div style="display:flex;gap:8px;align-items:center;"><span style="font-size:11px;color:var(--text3);width:50px;">URL</span><input style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-size:12px;outline:none;" value="http://api.tushare.pro"></div>
+          <div style="display:flex;gap:8px;align-items:center;"><span style="font-size:11px;color:var(--text3);width:50px;">Token</span><input style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-size:12px;outline:none;" placeholder="输入 Token"><button class="btn btn-p btn-sm" style="padding:5px 12px;font-size:11px;">验证</button></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:500;margin-bottom:8px;">📦 本地缓存</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:var(--accent);">—</div><div style="font-size:10px;color:var(--text3);">日线记录</div></div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:var(--accent);">—</div><div style="font-size:10px;color:var(--text3);">覆盖标的</div></div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:var(--accent);">—</div><div style="font-size:10px;color:var(--text3);">存储空间</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function sw(p) {
+  document.querySelectorAll('.nv').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('on'));
+  document.querySelector(`.nv[onclick*="${p}"]`).classList.add('on');
+  document.getElementById('p-' + p).classList.add('on');
+}
+function toggleDetail(el) {
+  const arrow = el.querySelector('.arrow');
+  const detail = el.nextElementSibling;
+  arrow.classList.toggle('open');
+  detail.classList.toggle('open');
+}
+</script>
+</body>
+</html>

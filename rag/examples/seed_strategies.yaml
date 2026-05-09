@@ -1,0 +1,217 @@
+- name: 双均线金叉死叉
+  description: >
+    买入：5日均线上穿20日均线；
+    卖出：5日均线下穿20日均线。
+  tags: [均线, 趋势, 入门]
+  code: |
+    class Strategy(MaCrossStrategy):
+        name = "双均线金叉死叉"
+        def __init__(self, fast=5, slow=20):
+            super().__init__(fast, slow)
+
+- name: 均线金叉 + 成交量过滤
+  description: >
+    买入：5日均线上穿20日均线，且当日成交量大于5日均量；
+    卖出：5日均线下穿20日均线，或收盘价跌破20日均线的3%。
+  tags: [均线, 成交量, 过滤]
+  code: |
+    class Strategy(MaWithVolumeStrategy):
+        name = "均线金叉+成交量过滤"
+        def __init__(self, fast=5, slow=20):
+            super().__init__(fast, slow)
+
+- name: MACD 金叉买入
+  description: >
+    买入：MACD 的 DIF 线上穿 DEA 线（金叉）；
+    卖出：DIF 线下穿 DEA 线（死叉）。
+  tags: [MACD, 震荡, 趋势]
+  code: |
+    from core.strategy import Strategy
+    from core.indicators import macd, cross_over, cross_under
+
+    class Strategy(Strategy):
+        name = "MACD金叉死叉"
+        def __init__(self, fast=12, slow=26, signal=9):
+            self.fast = fast
+            self.slow = slow
+            self.signal = signal
+
+        def init(self):
+            close = self.data["close"]
+            self.dif, self.dea, self.bar = macd(close, self.fast, self.slow, self.signal)
+
+        def buy_condition(self, i):
+            return cross_over(self.dif, self.dea, i)
+
+        def sell_condition(self, i):
+            return cross_under(self.dif, self.dea, i)
+
+- name: RSI 超买超卖
+  description: >
+    买入：RSI 低于30（超卖），开始反弹；
+    卖出：RSI 高于70（超买），开始回落。
+  tags: [RSI, 超买超卖, 反转]
+  code: |
+    from core.strategy import Strategy
+    from core.indicators import rsi
+
+    class Strategy(Strategy):
+        name = "RSI超买超卖"
+        def __init__(self, period=14, oversold=30, overbought=70):
+            self.period = period
+            self.oversold = oversold
+            self.overbought = overbought
+
+        def init(self):
+            self.rsi_val = rsi(self.data["close"], self.period)
+
+        def buy_condition(self, i):
+            if i < 1:
+                return False
+            return self.rsi_val.iloc[i - 1] <= self.oversold and self.rsi_val.iloc[i] > self.oversold
+
+        def sell_condition(self, i):
+            if i < 1:
+                return False
+            return self.rsi_val.iloc[i - 1] >= self.overbought and self.rsi_val.iloc[i] < self.overbought
+
+- name: 布林带突破
+  description: >
+    买入：收盘价跌破布林带下轨后回到下轨之上（下轨反弹）；
+    卖出：收盘价突破布林带上轨后回到上轨之下（上轨回落）。
+  tags: [布林带, 波动率, 反转]
+  code: |
+    from core.strategy import Strategy
+    from core.indicators import bollinger
+
+    class Strategy(Strategy):
+        name = "布林带反弹"
+        def __init__(self, period=20, std=2):
+            self.period = period
+            self.std = std
+
+        def init(self):
+            close = self.data["close"]
+            self.upper, self.mid, self.lower = bollinger(close, self.period, self.std)
+
+        def buy_condition(self, i):
+            if i < 1:
+                return False
+            return (self.data["close"].iloc[i - 1] <= self.lower.iloc[i - 1]
+                    and self.data["close"].iloc[i] > self.lower.iloc[i])
+
+        def sell_condition(self, i):
+            if i < 1:
+                return False
+            return (self.data["close"].iloc[i - 1] >= self.upper.iloc[i - 1]
+                    and self.data["close"].iloc[i] < self.upper.iloc[i])
+
+- name: 双底形态突破
+  description: >
+    买入：股价形成双底（W底），突破颈线；
+    卖出：跌破颈线或涨幅达20%止盈。
+  tags: [形态, 双底, 突破]
+  code: |
+    from core.strategy import Strategy
+    from core.indicators import sma
+
+    class Strategy(Strategy):
+        name = "双底突破"
+        def __init__(self, lookback=30, neck_pct=0.02, take_profit=0.2):
+            self.lookback = lookback
+            self.neck_pct = neck_pct
+            self.take_profit = take_profit
+            self.buy_price = 0
+
+        def init(self):
+            pass
+
+        def buy_condition(self, i):
+            if i < self.lookback:
+                return False
+            recent = self.data["close"].iloc[i - self.lookback:i + 1]
+            if len(recent) < self.lookback:
+                return False
+            trough1 = recent.iloc[:self.lookback // 2].min()
+            trough2 = recent.iloc[self.lookback // 2:].min()
+            neck = max(recent.iloc[:self.lookback // 2].max(),
+                       recent.iloc[self.lookback // 2:].max())
+            is_double_bottom = abs(trough1 - trough2) / trough1 < 0.03
+            is_breakout = self.data["close"].iloc[i] > neck * (1 + self.neck_pct)
+            if is_double_bottom and is_breakout:
+                self.buy_price = self.data["close"].iloc[i]
+                return True
+            return False
+
+        def sell_condition(self, i):
+            if self.buy_price <= 0:
+                return False
+            price = self.data["close"].iloc[i]
+            if price <= self.buy_price * 0.95:
+                return True
+            if price >= self.buy_price * (1 + self.take_profit):
+                return True
+            return False
+
+- name: 放量突破均线
+  description: >
+    买入：放量突破60日均线，且成交量是5日均量的2倍以上；
+    卖出：跌破60日均线。
+  tags: [均线, 放量, 突破]
+  code: |
+    from core.strategy import Strategy
+    from core.indicators import sma
+
+    class Strategy(Strategy):
+        name = "放量突破60日线"
+        def __init__(self, period=60, vol_mult=2.0):
+            self.period = period
+            self.vol_mult = vol_mult
+
+        def init(self):
+            close = self.data["close"]
+            volume = self.data["volume"]
+            self.ma = sma(close, self.period)
+            self.vol_ma = sma(volume, 5)
+
+        def buy_condition(self, i):
+            if i < 1:
+                return False
+            prev_close = self.data["close"].iloc[i - 1]
+            curr_close = self.data["close"].iloc[i]
+            curr_vol = self.data["volume"].iloc[i]
+            below = prev_close <= self.ma.iloc[i - 1]
+            above = curr_close > self.ma.iloc[i]
+            vol_surge = curr_vol > self.vol_ma.iloc[i] * self.vol_mult
+            return below and above and vol_surge
+
+        def sell_condition(self, i):
+            return self.data["close"].iloc[i] < self.ma.iloc[i]
+
+- name: 连续上涨后放量滞涨
+  description: >
+    买入：连续3日下跌后买入（逆势）；
+    卖出：连续3日上涨后卖出（顺势）。
+  tags: [短线, 连涨连跌, 反向]
+  code: |
+    from core.strategy import Strategy
+
+    class Strategy(Strategy):
+        name = "连跌买入连涨卖出"
+        def __init__(self, days=3):
+            self.days = days
+
+        def init(self):
+            pass
+
+        def buy_condition(self, i):
+            if i < self.days:
+                return False
+            recent = self.data["close"].iloc[i - self.days + 1:i + 1]
+            return all(recent.iloc[j] < recent.iloc[j - 1] for j in range(1, len(recent)))
+
+        def sell_condition(self, i):
+            if i < self.days:
+                return False
+            recent = self.data["close"].iloc[i - self.days + 1:i + 1]
+            return all(recent.iloc[j] > recent.iloc[j - 1] for j in range(1, len(recent)))

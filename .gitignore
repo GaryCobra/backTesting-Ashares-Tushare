@@ -1,0 +1,35 @@
+# runtime data
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# sisyphus internal
+.sisyphus/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# env
+.env
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# streamlit
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
