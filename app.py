@@ -13,6 +13,10 @@ from core.data import get_source, get_source_config, save_source_config
 from core.data_source import AVAILABLE_SOURCES
 from core.cache import get_cache_stats, clear_cache
 from core.engine import SignalEngine
+from core.charting import (
+    plot_stock_kline, plot_portfolio_equity, plot_trade_pnl_distribution, render_metrics_html,
+)
+from core.metrics import compute_metrics, compute_trade_metrics
 from strategies.generator import generate_strategy
 from rag.store import add_example, list_examples, count_examples, init_rag
 from rag.retriever import search_examples
@@ -477,6 +481,14 @@ def show_strategy_page():
             strat = generate_strategy(buy_desc, sell_desc)
             results = engine.run(strat, stock_data)
 
+            # 计算详细绩效指标
+            equity_curve = results.get("portfolio_equity")
+            if equity_curve is not None and not equity_curve.empty:
+                portfolio_metrics = compute_metrics(equity_curve, capital)
+            else:
+                portfolio_metrics = {}
+            trade_metrics = compute_trade_metrics(results.get("all_trades", pd.DataFrame()))
+
             # 保存到 session
             report_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             report = {
@@ -489,6 +501,8 @@ def show_strategy_page():
                 "capital": capital,
                 "shares_per_trade": shares_per_trade,
                 "results": results,
+                "portfolio_metrics": portfolio_metrics,
+                "trade_metrics": trade_metrics,
                 "created_at": datetime.datetime.now().isoformat(),
             }
             # 补充策略名称
@@ -613,60 +627,96 @@ def show_report_page():
     else:
         st.caption("点击「生成优化建议」根据回测结果分析策略改进方向")
 
-    # 标的列表
+    # ── 切换到更丰富可视化 ──
     summary = r["stock_summary"]
     if summary.empty:
         st.warning("没有产生任何交易信号")
         return
 
-    st.markdown(f"<div class='section-header' style='font-size:18px;'>📋 触发信号的标的 — 共 {len(summary)} 只</div>", unsafe_allow_html=True)
+    tab_overview, tab_details = st.tabs(["📊 组合概览", "📋 个股明细"])
 
-    stocks_df = st.session_state.api.get_stock_basic()
-    name_map = {}
-    if not stocks_df.empty:
-        for _, row in stocks_df.iterrows():
-            name_map[row["ts_code"]] = row.get("name", "")
+    with tab_overview:
+        # 绩效指标卡片
+        portfolio_metrics = report.get("portfolio_metrics", {})
+        trade_metrics = report.get("trade_metrics", {})
+        if portfolio_metrics:
+            st.markdown(render_metrics_html(portfolio_metrics, trade_metrics, report.get("capital", 100000)),
+                        unsafe_allow_html=True)
 
-    for _, row in summary.head(50).iterrows():
-        code = row["ts_code"]
-        total = int(row["total_trades"])
-        win_rate = row["win_rate"]
-        total_pnl = row["total_pnl"]
-        avg_pnl = row["avg_pnl"]
+        # 组合净值曲线
+        equity_curve = r.get("portfolio_equity")
+        if equity_curve is not None and not equity_curve.empty:
+            st.plotly_chart(
+                plot_portfolio_equity(equity_curve),
+                use_container_width=True,
+            )
 
-        pnl_color = "green" if total_pnl >= 0 else "red"
-        pnl_icon = "📈" if total_pnl >= 0 else "📉"
-        stock_name = name_map.get(code, "")
+        # 交易盈亏分布
+        all_trades_df = r.get("all_trades")
+        if all_trades_df is not None and not all_trades_df.empty:
+            st.plotly_chart(
+                plot_trade_pnl_distribution(all_trades_df),
+                use_container_width=True,
+            )
 
-        with st.expander(
-            f"{pnl_icon} {code}  {stock_name}  —  {total} 笔交易  ·  "
-            f"胜率 {win_rate}%  ·  收益 {avg_pnl}%"
-        ):
-            trades = r["stock_trades"].get(code, [])
-            if trades:
-                data = []
-                for t in trades:
-                    data.append({
-                        "方向": "🟢 买入" if t.buy_date else "",
-                        "买入日": t.buy_date,
-                        "买入价": f"{t.buy_price:.2f}",
-                        "卖出日": t.sell_date,
-                        "卖出价": f"{t.sell_price:.2f}" if t.sell_price else "—",
-                        "盈亏%": f"{t.pnl_pct:+.2f}%",
-                        "盈亏额": f"¥{t.pnl_amount:+.0f}",
-                        "持仓天": t.hold_days,
-                    })
-                df = pd.DataFrame(data)
-                st.dataframe(df, use_container_width=True, hide_index=True)
+    with tab_details:
+        st.markdown(f"<div style='margin-bottom:8px;font-size:14px;color:#484644;'>"
+                    f"共 {len(summary)} 只标的触发信号</div>", unsafe_allow_html=True)
 
-                total_pnl_all = sum(t.pnl_amount for t in trades)
-                wins = sum(1 for t in trades if t.pnl_pct > 0)
-                color = "#ef5350" if total_pnl_all >= 0 else "#26a69a"
-                st.markdown(
-                    f"**汇总**：{len(trades)} 笔  ·  盈利 {wins} 笔  ·  "
-                    f"总盈亏: <span style='color:{color}'>¥{total_pnl_all:+,.0f}</span>",
-                    unsafe_allow_html=True,
-                )
+        stocks_df = st.session_state.api.get_stock_basic()
+        name_map = {}
+        if not stocks_df.empty:
+            for _, row in stocks_df.iterrows():
+                name_map[row["ts_code"]] = row.get("name", "")
+
+        for _, row in summary.head(50).iterrows():
+            code = row["ts_code"]
+            total = int(row["total_trades"])
+            win_rate = row["win_rate"]
+            total_pnl = row["total_pnl"]
+            avg_pnl = row["avg_pnl"]
+
+            pnl_icon = "📈" if total_pnl >= 0 else "📉"
+            stock_name = name_map.get(code, "")
+
+            with st.expander(
+                f"{pnl_icon} {code}  {stock_name}  —  {total} 笔交易  ·  "
+                f"胜率 {win_rate}%  ·  收益 {avg_pnl}%"
+            ):
+                # K线图
+                ohlcv = r.get("stock_ohlcv", {}).get(code)
+                trades = r["stock_trades"].get(code, [])
+                if ohlcv is not None and trades:
+                    st.plotly_chart(
+                        plot_stock_kline(code, ohlcv, trades, stock_name),
+                        use_container_width=True,
+                    )
+
+                # 交易明细表
+                if trades:
+                    data = []
+                    for t in trades:
+                        data.append({
+                            "方向": "🟢 买入" if t.buy_date else "",
+                            "买入日": t.buy_date,
+                            "买入价": f"{t.buy_price:.2f}",
+                            "卖出日": t.sell_date,
+                            "卖出价": f"{t.sell_price:.2f}" if t.sell_price else "—",
+                            "盈亏%": f"{t.pnl_pct:+.2f}%",
+                            "盈亏额": f"¥{t.pnl_amount:+.0f}",
+                            "持仓天": t.hold_days,
+                        })
+                    df = pd.DataFrame(data)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+
+                    total_pnl_all = sum(t.pnl_amount for t in trades)
+                    wins = sum(1 for t in trades if t.pnl_pct > 0)
+                    color = "#ef5350" if total_pnl_all >= 0 else "#26a69a"
+                    st.markdown(
+                        f"**汇总**：{len(trades)} 笔  ·  盈利 {wins} 笔  ·  "
+                        f"总盈亏: <span style='color:{color}'>¥{total_pnl_all:+,.0f}</span>",
+                        unsafe_allow_html=True,
+                    )
 
 
 def _generate_suggestion(results: dict, report: dict) -> str:

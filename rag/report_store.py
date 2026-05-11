@@ -13,6 +13,7 @@ Schema:
     - strategy_name   TEXT               匹配的策略名称
     - summary_json    TEXT               概览统计 JSON (标量)
     - trades_json     TEXT               逐笔交易 JSON (完整明细)
+    - metrics_json    TEXT               绩效指标 JSON (portfolio + trade metrics)
     - created_at      TEXT               创建时间
     - updated_at      TEXT               更新时间
 """
@@ -21,6 +22,7 @@ import json
 import datetime
 from pathlib import Path
 from typing import Optional
+import pandas as pd
 
 RAG_DB_PATH = Path(__file__).parent.parent / "data" / "rag_cache.db"
 
@@ -49,10 +51,16 @@ def init_reports_table():
             strategy_name   TEXT DEFAULT '',
             summary_json    TEXT,
             trades_json     TEXT,
+            metrics_json    TEXT,
             created_at      TEXT DEFAULT (datetime('now')),
             updated_at      TEXT DEFAULT (datetime('now'))
         )
     """)
+    # 兼容旧表：添加 metrics_json 列（如果不存在）
+    try:
+        conn.execute("ALTER TABLE backtest_reports ADD COLUMN metrics_json TEXT")
+    except sqlite3.OperationalError:
+        pass  # 列已存在
     conn.commit()
     conn.close()
 
@@ -102,13 +110,19 @@ def save_report(report: dict) -> str:
                 "status": t.status,
             })
 
+    # 提取绩效指标（小 dict，可直接 JSON）
+    metrics = {
+        "portfolio": report.get("portfolio_metrics", {}),
+        "trade": report.get("trade_metrics", {}),
+    }
+
     conn = _get_conn()
     conn.execute("""
         INSERT OR REPLACE INTO backtest_reports
             (id, name, buy_desc, sell_desc, start_date, end_date,
              capital, shares_per_trade, strategy_name,
-             summary_json, trades_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+             summary_json, trades_json, metrics_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     """, (
         report_id,
         report.get("name", f"回测_{report_id}"),
@@ -121,6 +135,7 @@ def save_report(report: dict) -> str:
         report.get("strategy_name", ""),
         json.dumps(summary, ensure_ascii=False),
         json.dumps(trades_data, ensure_ascii=False),
+        json.dumps(metrics, ensure_ascii=False),
     ))
     conn.commit()
     conn.close()
@@ -168,6 +183,30 @@ def delete_report(report_id: str):
     conn.close()
 
 
+class _TradeView:
+    """轻量适配器：将 dict 格式的交易数据包装为 Trade 风格对象。
+
+    DB 加载的报告 trades 是 dict，而图表代码需要 .buy_date / .buy_price 等属性访问。
+    """
+    __slots__ = ("ts_code", "buy_date", "buy_price", "sell_date", "sell_price",
+                 "shares", "pnl_pct", "pnl_amount", "hold_days",
+                 "status", "buy_signal", "sell_signal")
+
+    def __init__(self, data: dict):
+        self.ts_code = data.get("ts_code", "")
+        self.buy_date = data.get("buy_date", "")
+        self.buy_price = data.get("buy_price", 0.0)
+        self.sell_date = data.get("sell_date", "")
+        self.sell_price = data.get("sell_price", 0.0)
+        self.shares = data.get("shares", 100)
+        self.pnl_pct = data.get("pnl_pct", 0.0)
+        self.pnl_amount = data.get("pnl_amount", 0.0)
+        self.hold_days = data.get("hold_days", 0)
+        self.status = data.get("status", "closed")
+        self.buy_signal = data.get("buy_signal", "")
+        self.sell_signal = data.get("sell_signal", "")
+
+
 def _row_to_report(row) -> dict:
     d = dict(row)
 
@@ -187,13 +226,13 @@ def _row_to_report(row) -> dict:
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # 重建 stock_trades dict
+    # 重建 stock_trades dict（用 _TradeView 统一属性访问方式）
     stock_trades = {}
     for t in all_trades_list:
         code = t["ts_code"]
         if code not in stock_trades:
             stock_trades[code] = []
-        stock_trades[code].append(t)
+        stock_trades[code].append(_TradeView(t))
 
     # 重建 results 结构
     results = {
@@ -204,9 +243,20 @@ def _row_to_report(row) -> dict:
         "win_rate": summary.get("win_rate", 0),
         "avg_pnl": summary.get("avg_pnl", 0),
         "stock_trades": stock_trades,
-        "stock_summary": [],  # 需要时从 trades 重新计算
-        "all_trades": all_trades_list,
+        "stock_summary": [],
+        "all_trades": pd.DataFrame(all_trades_list) if all_trades_list else pd.DataFrame(),
     }
+
+    # 解析绩效指标
+    portfolio_metrics = {}
+    trade_metrics = {}
+    if d.get("metrics_json"):
+        try:
+            m = json.loads(d["metrics_json"])
+            portfolio_metrics = m.get("portfolio", {})
+            trade_metrics = m.get("trade", {})
+        except (json.JSONDecodeError, TypeError):
+            pass
 
     return {
         "id": d["id"],
@@ -219,5 +269,7 @@ def _row_to_report(row) -> dict:
         "shares_per_trade": d.get("shares_per_trade", 100),
         "strategy_name": d.get("strategy_name", ""),
         "results": results,
+        "portfolio_metrics": portfolio_metrics,
+        "trade_metrics": trade_metrics,
         "created_at": d.get("created_at", ""),
     }
