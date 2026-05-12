@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 import datetime
+import sys
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.cache import clear_cache
 from core.charting import (
@@ -41,8 +47,6 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap');
-
 :root {
   --bg: #07111f;
   --bg-soft: #0b1728;
@@ -68,7 +72,7 @@ st.markdown(
 }
 
 html, body, [class*="css"] {
-  font-family: 'Manrope', 'Noto Sans SC', sans-serif;
+  font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   color: var(--text);
 }
 
@@ -829,7 +833,7 @@ def top_bar() -> None:
             clicked = st.button(
                 f"{label}",
                 key=f"nav_{page}",
-                use_container_width=True,
+                width="stretch",
                 type="primary" if st.session_state.page == page else "secondary",
             )
             if clicked:
@@ -1013,7 +1017,7 @@ def show_strategy_page() -> None:
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
         start_date = st.text_input("起始日期", value="2024-01-01")
         end_date = st.text_input("结束日期", value="2024-12-31")
-        run_btn = st.button("生成策略并开始回测", type="primary", use_container_width=True)
+        run_btn = st.button("生成策略并开始回测", type="primary", width="stretch")
         st.markdown(
             "<div class='panel-note'>当前界面只保留必要控制项。策略范围、交易规则、资金和股数继续交给中文描述完成。</div>",
             unsafe_allow_html=True,
@@ -1161,7 +1165,7 @@ def show_report_page() -> None:
     with c1:
         new_name = st.text_input("报告名称", value=report["name"])
     with c2:
-        if st.button("保存报告", use_container_width=True):
+        if st.button("保存报告", width="stretch"):
             report["name"] = new_name
             try:
                 db_save_report(report)
@@ -1180,7 +1184,7 @@ def show_report_page() -> None:
             st.session_state.show_suggestion = False
             st.rerun()
     with c4:
-        if st.button("删除报告", use_container_width=True):
+        if st.button("删除报告", width="stretch"):
             del st.session_state.results[current_id]
             try:
                 delete_report(current_id)
@@ -1213,7 +1217,7 @@ def show_report_page() -> None:
     glass_card("策略优化建议", "根据当前回测结果，给出下一轮调参或改写策略时最值得优先尝试的方向。")
     suggest_cols = st.columns([4.2, 1.2], gap="large")
     with suggest_cols[1]:
-        if st.button("生成优化建议", use_container_width=True):
+        if st.button("生成优化建议", width="stretch"):
             st.session_state.show_suggestion = True
     with suggest_cols[0]:
         if st.session_state.show_suggestion:
@@ -1248,7 +1252,7 @@ def show_report_page() -> None:
         if equity_curve is not None and not equity_curve.empty:
             st.plotly_chart(
                 plot_portfolio_equity(equity_curve),
-                use_container_width=True,
+                width="stretch",
                 config={"displayModeBar": False},
             )
 
@@ -1256,7 +1260,7 @@ def show_report_page() -> None:
         if all_trades_df is not None and not all_trades_df.empty:
             st.plotly_chart(
                 plot_trade_pnl_distribution(all_trades_df),
-                use_container_width=True,
+                width="stretch",
                 config={"displayModeBar": False},
             )
 
@@ -1295,7 +1299,7 @@ def show_report_page() -> None:
                 if ohlcv is not None and trades:
                     st.plotly_chart(
                         plot_stock_kline(code, ohlcv, trades, stock_name),
-                        use_container_width=True,
+                        width="stretch",
                         config={"displayModeBar": False},
                     )
 
@@ -1316,7 +1320,7 @@ def show_report_page() -> None:
                             }
                         )
                     trades_df = pd.DataFrame(table_rows)
-                    st.dataframe(trades_df, use_container_width=True, hide_index=True)
+                    st.dataframe(trades_df, width="stretch", hide_index=True)
 
 
 def _generate_suggestion(results: dict, report: dict) -> str:
@@ -1398,14 +1402,14 @@ def show_settings_page() -> None:
 
     action_cols = st.columns(2, gap="medium")
     with action_cols[0]:
-        if st.button("保存当前配置", use_container_width=True, type="primary"):
+        if st.button("保存当前配置", width="stretch", type="primary"):
             from core.data import save_source_config
 
             save_source_config(selected_source, token, api_url)
             st.session_state.api = get_source()
             st.success(f"数据源已切换为 {selected_source}")
     with action_cols[1]:
-        if st.button("验证连接", use_container_width=True):
+        if st.button("验证连接", width="stretch"):
             api = st.session_state.api
             if api.name.lower().replace(" ", "") != selected_source:
                 from core.data import create_source
@@ -1444,7 +1448,7 @@ def show_settings_page() -> None:
     )
     clear_cols = st.columns([1.2, 2.8], gap="large")
     with clear_cols[0]:
-        if st.button("清空本地缓存", use_container_width=True):
+        if st.button("清空本地缓存", width="stretch"):
             clear_cache()
             st.success("缓存已清空。下次回测会重新拉取所需行情数据。")
     with clear_cols[1]:
